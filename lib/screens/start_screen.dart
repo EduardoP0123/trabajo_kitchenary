@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'login_register__screens/login_screen.dart';
+import 'login_register__screens/register_screen.dart';
 
 class StartScreen extends StatelessWidget {
   const StartScreen({Key? key}) : super(key: key);
@@ -18,7 +20,8 @@ class StartScreen extends StatelessWidget {
         ),
         child: Stack(
           children: [
-            // "Kitchenary" title
+
+            // logo "Kitchenary"
             Positioned(
               top: 100,
               left: 130,
@@ -32,6 +35,7 @@ class StartScreen extends StatelessWidget {
                 ),
               ),
             ),
+
             // Log in button
             Positioned(
               bottom: 100,
@@ -50,7 +54,14 @@ class StartScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        onPressed: () {},
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const LoginScreen(),
+                            ),
+                          );
+                        },
                         child: const Text(
                           'Log in',
                           style: TextStyle(
@@ -63,7 +74,14 @@ class StartScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     TextButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const RegisterScreen(),
+                          ),
+                        );
+                      },
                       child: const Text(
                         'Sign up',
                         style: TextStyle(
