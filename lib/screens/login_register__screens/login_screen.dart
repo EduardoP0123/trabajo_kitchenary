@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:proyecto_final_construccion/screens/login_register__screens/register_screen.dart';
 
+import '../app_nav/home_screen.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -179,7 +181,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 onPressed: () {
-                  // Acción de login
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>  HomeScreen(),
+                    ),
+                  );
                 },
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,

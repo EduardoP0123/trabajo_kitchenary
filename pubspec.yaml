@@ -64,6 +64,7 @@ flutter:
     - assets/images/logo_2.svg
     - assets/images/login.jpg
     - assets/icons/login_icon.svg
+    - assets/images/register_img.jpg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
