@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../app_nav/home_screen.dart';
 import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -158,7 +159,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 onPressed: () {
-                  // Acción de registro
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const HomeScreen(),
+                    ),
+                  );
                 },
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
