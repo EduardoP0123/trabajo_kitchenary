@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:proyecto_final_construccion/screens/login_register__screens/register_screen.dart';
-
 import '../app_nav/home_screen.dart';
+import '../../api/login_register_db/login_db.dart'; // Importa la función login
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,6 +15,30 @@ class _LoginScreenState extends State<LoginScreen> {
   bool rememberMe = false;
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+
+  Future<void> _login() async {
+    final correo = emailController.text.trim();
+    final contrasena = passwordController.text.trim();
+
+    if (correo.isEmpty || contrasena.isEmpty) {
+      EasyLoading.showError('Completa todos los campos');
+      return;
+    }
+
+    EasyLoading.show(status: 'Ingresando...');
+    final success = await login(correo, contrasena);
+    EasyLoading.dismiss();
+
+    if (success) {
+      EasyLoading.showSuccess('Bienvenido');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => HomeScreen()),
+      );
+    } else {
+      EasyLoading.showError('Credenciales incorrectas');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,11 +54,10 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Opacity(
               opacity: 0.97,
               child: Container(
-                width: size.width + 46, // 430 + 46 = 476
+                width: size.width + 46,
                 height: 272,
                 decoration: const ShapeDecoration(
                   image: DecorationImage(
-                    // Usa AssetImage si tienes la imagen local, si no, usa NetworkImage
                     image: AssetImage('assets/images/login.jpg'),
                     fit: BoxFit.cover,
                   ),
@@ -46,7 +70,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-
           // Título "Iniciar sesión"
           Positioned(
             left: 64,
@@ -65,7 +88,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-
           // Campo Email (TextField)
           Positioned(
             left: 64,
@@ -93,7 +115,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-
           // Campo Contraseña (TextField)
           Positioned(
             left: 64,
@@ -122,7 +143,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-
           // Recordar (Checkbox) y Olvidaste tu contraseña? (Botón)
           Positioned(
             left: 64,
@@ -180,14 +200,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                 ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>  HomeScreen(),
-                    ),
-                  );
-                },
+                onPressed: _login,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

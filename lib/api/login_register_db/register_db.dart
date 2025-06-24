@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
-import '../app_nav/home_screen.dart';
-import 'login_screen.dart';
+import '../../screens/app_nav/home_screen.dart';
+import '../../screens/login_register__screens/login_screen.dart';
+
 import '../../api/login_register_db/register_db.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -12,16 +13,18 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  final TextEditingController usernameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController = TextEditingController();
 
   Future<void> _register() async {
+    final nombreUsuario = usernameController.text.trim();
     final correo = emailController.text.trim();
     final contrasena = passwordController.text.trim();
     final confirmar = confirmPasswordController.text.trim();
 
-    if (correo.isEmpty || contrasena.isEmpty || confirmar.isEmpty) {
+    if (nombreUsuario.isEmpty || correo.isEmpty || contrasena.isEmpty || confirmar.isEmpty) {
       EasyLoading.showError('Completa todos los campos');
       return;
     }
@@ -30,9 +33,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
+
+    ///ARREGLAR ESTO YA QUE TIENE QUE VER CON LA INTEGRACION DE LA DB A LA PANTALLA REGISTRO
+
     EasyLoading.show(status: 'Registrando...');
-    // Puedes usar el correo como nombre_usuario si no tienes campo de usuario
-    final success = await register(correo, correo, contrasena);
+    final success = await register(nombreUsuario, correo, contrasena);
     EasyLoading.dismiss();
 
     if (success) {
@@ -83,6 +88,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   fontSize: 36,
                   fontFamily: 'Fira Code',
                   fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+          // Campo Nombre de usuario
+          Positioned(
+            left: 70,
+            top: 400,
+            child: SizedBox(
+              width: 290,
+              height: 45,
+              child: TextField(
+                controller: usernameController,
+                decoration: InputDecoration(
+                  hintText: 'Nombre de usuario',
+                  hintStyle: TextStyle(
+                    color: Colors.black.withOpacity(0.58),
+                    fontSize: 16,
+                    fontFamily: 'Khula',
+                    fontWeight: FontWeight.w300,
+                  ),
+                  filled: true,
+                  fillColor: const Color(0x72D9D9D9),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                 ),
               ),
             ),
