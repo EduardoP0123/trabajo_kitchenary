@@ -1,0 +1,168 @@
+-- Crear la base de datos
+CREATE DATABASE Kitchenary;
+GO
+
+-- Usar la base de datos
+USE Kitchenary;
+GO
+
+-- CATEGORIA
+CREATE TABLE Categoria (
+    id_categoria INT PRIMARY KEY,
+    categoria NVARCHAR(100)
+);
+
+-- INGREDIENTE
+CREATE TABLE Ingrediente (
+    id_ingrediente INT PRIMARY KEY,
+    nombre NVARCHAR(100),
+    unidad_medida NVARCHAR(50),
+    imagen NVARCHAR(255),
+    id_categoria INT FOREIGN KEY REFERENCES Categoria(id_categoria)
+);
+
+-- NOMBRES ALTERNATIVOS
+CREATE TABLE Nombres_alternativos (
+    id_ingrediente_N_A INT PRIMARY KEY,
+    nombre NVARCHAR(100),
+    unidad_medida NVARCHAR(50),
+    imagen NVARCHAR(255),
+    id_ingrediente INT FOREIGN KEY REFERENCES Ingrediente(id_ingrediente)
+);
+
+-- TIPO DE USUARIO
+CREATE TABLE Tipo_usuario (
+    id_tipo_usuario INT PRIMARY KEY,
+    Tipo NVARCHAR(50)
+);
+
+-- USUARIO
+CREATE TABLE Usuario (
+    id_usuario INT PRIMARY KEY,
+    nombre_usuario NVARCHAR(50),
+    nombre NVARCHAR(100),
+    correo NVARCHAR(100),
+    contraseña NVARCHAR(255),
+    foto_perfil NVARCHAR(255),
+    biografia NVARCHAR(MAX),
+    fecha_registro DATE,
+    telefono NVARCHAR(20),
+    id_tipo_usuario INT FOREIGN KEY REFERENCES Tipo_usuario(id_tipo_usuario),
+    Cantidad_Seguidores INT,
+    Cantidad_Seguidos INT
+);
+
+-- RELACIÓN SEGUIDORES
+CREATE TABLE Seguidores_Usuario (
+    id_usuario INT,
+    id_usuario_Seguidor INT,
+    Fecha_seguimiento DATE,
+    PRIMARY KEY (id_usuario, id_usuario_Seguidor),
+    FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario),
+    FOREIGN KEY (id_usuario_Seguidor) REFERENCES Usuario(id_usuario)
+);
+
+-- RELACIÓN SEGUIDOS
+CREATE TABLE Seguidos_Usuario (
+    id_usuario INT,
+    id_usuario_Seguido INT,
+    Fecha_seguimiento DATE,
+    PRIMARY KEY (id_usuario, id_usuario_Seguido),
+    FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario),
+    FOREIGN KEY (id_usuario_Seguido) REFERENCES Usuario(id_usuario)
+);
+
+-- TIPO DE NOTIFICACIÓN
+CREATE TABLE Tipo_Notificacion (
+    id_tipo_notificacion INT PRIMARY KEY,
+    tipo NVARCHAR(100)
+);
+
+-- NOTIFICACIÓN
+CREATE TABLE Notificacion (
+    id_notificacion INT PRIMARY KEY,
+    mensaje NVARCHAR(MAX),
+    id_tipo_receta INT,
+    leida BIT,
+    fecha_envio DATE
+);
+
+-- NOTIFICACIONES DEL USUARIO
+CREATE TABLE Notificaciones_usuario (
+    id_usuario INT,
+    id_notificacion INT,
+    PRIMARY KEY (id_usuario, id_notificacion),
+    FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario),
+    FOREIGN KEY (id_notificacion) REFERENCES Notificacion(id_notificacion)
+);
+
+-- ESTADO DE LA RECETA
+CREATE TABLE Estado_receta (
+    id_estado_receta INT PRIMARY KEY,
+    estado NVARCHAR(50)
+);
+
+-- RECETA
+CREATE TABLE Receta (
+    id_receta INT PRIMARY KEY,
+    titulo NVARCHAR(100),
+    descripcion NVARCHAR(MAX),
+    imagen NVARCHAR(255),
+    tiempo_preparacion INT,
+    id_estado_receta INT FOREIGN KEY REFERENCES Estado_receta(id_estado_receta),
+    fecha_creacion DATE,
+    pasos NVARCHAR(MAX),
+    id_usuario INT FOREIGN KEY REFERENCES Usuario(id_usuario),
+    Promedio_valoracion DECIMAL(3,2),
+    id_categoria INT FOREIGN KEY REFERENCES Categoria(id_categoria)
+);
+
+-- RELACIÓN RECETA-GUARDADA
+CREATE TABLE Receta_Guardada (
+    id_usuario INT,
+    id_receta INT,
+    fecha_guardado DATE,
+    PRIMARY KEY (id_usuario, id_receta),
+    FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario),
+    FOREIGN KEY (id_receta) REFERENCES Receta(id_receta)
+);
+
+-- RELACIÓN INGREDIENTE - RECETA
+CREATE TABLE Ingrediente_Receta (
+    id_ingrediente INT,
+    id_receta INT,
+    Cantidad NVARCHAR(50),
+    PRIMARY KEY (id_ingrediente, id_receta),
+    FOREIGN KEY (id_ingrediente) REFERENCES Ingrediente(id_ingrediente),
+    FOREIGN KEY (id_receta) REFERENCES Receta(id_receta)
+);
+
+-- RECETA-CATEGORIA (si hay más de una categoría por receta)
+CREATE TABLE Receta_Categoria (
+    id_categoria INT,
+    id_receta INT,
+    PRIMARY KEY (id_categoria, id_receta),
+    FOREIGN KEY (id_categoria) REFERENCES Categoria(id_categoria),
+    FOREIGN KEY (id_receta) REFERENCES Receta(id_receta)
+);
+
+-- COMENTARIO
+CREATE TABLE Comentario (
+    ID_Comentario INT,
+    id_usuario INT,
+    id_receta INT,
+    Texto NVARCHAR(MAX),
+    Fecha_Comentario DATE,
+    Comentario_anidado INT,
+    PRIMARY KEY (ID_Comentario, Comentario_anidado),
+    FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario),
+    FOREIGN KEY (id_receta) REFERENCES Receta(id_receta)
+);
+
+-- VALORACIÓN
+CREATE TABLE Valoracion (
+    id_valoracion INT PRIMARY KEY,
+    id_usuario INT FOREIGN KEY REFERENCES Usuario(id_usuario),
+    id_receta INT FOREIGN KEY REFERENCES Receta(id_receta),
+    valoracion INT
+);
