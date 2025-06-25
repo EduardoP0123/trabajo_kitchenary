@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:proyecto_final_construccion/screens/app_nav/profile/profile_screen.dart';
+
 
 class Recipe {
   final String title;
@@ -505,37 +507,40 @@ class HomeScreen extends StatelessWidget {
                     const Positioned(
                       left: 11,
                       top: 8.5,
-                      child: Icon(Icons.home, color: Colors.white, size: 24),
+                      child: Icon(Icons.home, color: Colors.black, size: 24),
                     ),
 
                     // Ícono Favoritos con notificación
                     Positioned(
-                      left: 76,
-                      top: 8.5,
-                      child: Stack(
-                        children: [
-                          const Icon(Icons.favorite, color: Colors.white, size: 24),
-                          Positioned(
-                            top: 2,
-                            right: 2,
-                            child: Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFFA851D),
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ),
-                        ],
+                      left: 70,
+                      top: 5,
+                      child: Container(
+                        width: 36,
+                        height: 30,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFA851D),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Center( // Center the icon within the circle
+                          child: Icon(Icons.add, color: Colors.white,
+                              size: 24),
+                        ),
                       ),
                     ),
 
-                    // Ícono Perfil
-                    const Positioned(
+                    // Ícono Perfil con navegación
+                    Positioned(
                       left: 141,
                       top: 8.5,
-                      child: Icon(Icons.person, color: Colors.black, size: 24),
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                          );
+                        },
+                        child: const Icon(Icons.person, color: Colors.black, size: 24),
+                      ),
                     ),
                   ],
                 ),
