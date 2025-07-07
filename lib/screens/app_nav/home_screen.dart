@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:proyecto_final_construccion/screens/app_nav/profile/profile_screen.dart';
 
+import 'agregar_receta/agregar_receta.dart';
+
 
 class Recipe {
   final String title;
@@ -471,6 +473,7 @@ class HomeScreen extends StatelessWidget {
           ),
 
           // Navegador transparente flotante
+          // Navegador transparente flotante
           Positioned(
             bottom: 20,
             left: 0,
@@ -510,20 +513,27 @@ class HomeScreen extends StatelessWidget {
                       child: Icon(Icons.home, color: Colors.black, size: 24),
                     ),
 
-                    // Ícono Favoritos con notificación
+                    // Ícono + con navegación a AgregarRecetaScreen
                     Positioned(
                       left: 70,
                       top: 5,
-                      child: Container(
-                        width: 36,
-                        height: 30,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFA851D),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Center( // Center the icon within the circle
-                          child: Icon(Icons.add, color: Colors.white,
-                              size: 24),
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const AgregarRecetaScreen()),
+                          );
+                        },
+                        child: Container(
+                          width: 36,
+                          height: 30,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFFA851D),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Center(
+                            child: Icon(Icons.add, color: Colors.white, size: 24),
+                          ),
                         ),
                       ),
                     ),
@@ -546,7 +556,7 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
             ),
-          ),
+          )
         ],
       ),
     );

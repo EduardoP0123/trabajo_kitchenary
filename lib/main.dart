@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:proyecto_final_construccion/screens/start_screen.dart';
 
-void main() {
+void main() async {
+  
+  WidgetsFlutterBinding.ensureInitialized();
+
   runApp(MyApp());
   configLoading();
 }

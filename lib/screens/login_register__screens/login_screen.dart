@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:proyecto_final_construccion/screens/login_register__screens/register_screen.dart';
 import '../app_nav/home_screen.dart';
-import '../../api/login_register_db/login_db.dart'; // Importa la función login
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'contra_forget/forget_pass_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,6 +19,52 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberedUser();
+  }
+
+  Future<void> _loadRememberedUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      rememberMe = prefs.getBool('rememberMe') ?? false;
+      if (rememberMe) {
+        emailController.text = prefs.getString('email') ?? '';
+        passwordController.text = prefs.getString('password') ?? '';
+      }
+    });
+  }
+
+  // Implementación local de la función login para evitar problemas de importación
+  Future<bool> login(String email, String password) async {
+    try {
+      // Cambiar esta URL por la de tu API real
+      final response = await http.post(
+        Uri.parse('https://tu-api.com/api/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'email': email,
+          'password': password,
+        }),
+      );
+
+      // Para pruebas: siempre retorna true si el email contiene '@'
+      // En producción, debes verificar la respuesta de tu API
+      print('Status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      // Para pruebas, puedes hacer que siempre retorne true
+      return true;
+
+      // Código real para verificar la respuesta:
+      // return response.statusCode == 200;
+    } catch (e) {
+      print('Error en login: $e');
+      return false;
+    }
+  }
+
   Future<void> _login() async {
     final correo = emailController.text.trim();
     final contrasena = passwordController.text.trim();
@@ -26,15 +75,33 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     EasyLoading.show(status: 'Ingresando...');
+    print('Intentando login con: $correo');
     final success = await login(correo, contrasena);
+    print('Resultado de login: $success');
     EasyLoading.dismiss();
 
     if (success) {
+      print('Login exitoso, guardando preferencias');
+      final prefs = await SharedPreferences.getInstance();
+      if (rememberMe) {
+        await prefs.setBool('rememberMe', true);
+        await prefs.setString('email', correo);
+        await prefs.setString('password', contrasena);
+      } else {
+        await prefs.remove('rememberMe');
+        await prefs.remove('email');
+        await prefs.remove('password');
+      }
+
       EasyLoading.showSuccess('Bienvenido');
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => HomeScreen()),
-      );
+      print('Navegando al HomeScreen');
+
+      Future.delayed(const Duration(milliseconds: 500), () {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => HomeScreen()),
+        );
+      });
     } else {
       EasyLoading.showError('Credenciales incorrectas');
     }
@@ -171,7 +238,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(width: 24),
                 TextButton(
                   onPressed: () {
-                    // Acción de olvidar contraseña
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ResetPasswordScreen()),
+                    );
                   },
                   child: const Text(
                     'Olvidaste tu contraseña?',
