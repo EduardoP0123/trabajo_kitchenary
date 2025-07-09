@@ -33,22 +33,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     EasyLoading.show(status: 'Registrando...');
-    final success = await register(nombreUsuario, correo, contrasena);
+    final result = await register(nombreUsuario, correo, contrasena);
     EasyLoading.dismiss();
 
-    if (success) {
+    if (result['success'] == true) {
       EasyLoading.showSuccess('Registro exitoso');
+
+      // El ID ya se guardó en SharedPreferences en la función register
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const HomeScreen()),
       );
     } else {
-      EasyLoading.showError('El correo ya está registrado');
+      EasyLoading.showError(result['message'] ?? 'El correo ya está registrado');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // El resto del código no cambia
     return Scaffold(
       backgroundColor: const Color(0xFFFFF4EB),
       body: SafeArea(
@@ -68,7 +71,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       image: AssetImage('assets/images/register_img.jpg'),
                       fit: BoxFit.cover,
                     ),
-                    borderRadius: BorderRadius.circular(50),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 const SizedBox(height: 30),
