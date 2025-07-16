@@ -219,10 +219,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(width: 24),
                 TextButton(
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ResetPasswordScreen()),
-                    );
+
                   },
                   child: const Text(
                     'Olvidaste tu contraseña?',

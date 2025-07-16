@@ -20,12 +20,15 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   late Animation<double> _circlePosition;
 
   int _userId = 0;
-  String _userEmail = 'User';
+
   String _userName = 'User';
   String? _profileImageUrl;
   List<dynamic> _userRecipes = [];
   List<dynamic> _likedRecipes = [];
+  List<dynamic> _followers = [];
+  List<dynamic> _following = [];
   bool _isLoading = true;
+  bool _isLoadingFollowers = false;
 
   final ImagePicker _picker = ImagePicker();
 
@@ -42,6 +45,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
 
     _loadUserData();
     _loadUserRecipes();
+    _loadFollowers();
   }
 
   // Carga datos del usuario
@@ -54,13 +58,12 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       final profileImage = prefs.getString('profileImage');
 
       setState(() {
-        _userEmail = email;
         _userId = userId;
         _userName = name;
         _profileImageUrl = profileImage;
       });
     } catch (e) {
-      print('Error cargando datos del usuario: $e');
+      debugPrint('Error cargando datos del usuario: $e');
     }
   }
 
@@ -95,10 +98,39 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
         });
       }
     } catch (e) {
-      print('Error cargando recetas: $e');
+      debugPrint('Error cargando recetas: $e');
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  // Carga seguidores y seguidos
+  Future<void> _loadFollowers() async {
+    setState(() { _isLoadingFollowers = true; });
+
+    try {
+      if (_userId == 0) {
+        await _loadUserData();
+      }
+
+      final followers = await ApiService.getFollowers(_userId);
+      final following = await ApiService.getFollowing(_userId);
+
+      if (mounted) {
+        setState(() {
+          _followers = followers['success'] ? followers['seguidores'] : [];
+          _following = following['success'] ? following['seguidos'] : [];
+          _isLoadingFollowers = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingFollowers = false;
+        });
+      }
+      debugPrint('Error cargando seguidores: $e');
     }
   }
 
@@ -244,6 +276,149 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     }
   }
 
+  // Mostrar lista de seguidores
+  void _showFollowersList() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 10),
+              width: 50,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.all(20.0),
+              child: Text(
+                'Seguidores',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Expanded(
+              child: _isLoadingFollowers
+                  ? const Center(child: CircularProgressIndicator(color: Color(0xFFFA851D)))
+                  : _followers.isEmpty
+                  ? const Center(child: Text('No tienes seguidores'))
+                  : ListView.builder(
+                itemCount: _followers.length,
+                itemBuilder: (context, index) {
+                  final follower = _followers[index];
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: const Color(0xFFFA851D),
+                      backgroundImage: follower['foto_perfil'] != null
+                          ? NetworkImage(follower['foto_perfil'])
+                          : null,
+                      child: follower['foto_perfil'] == null
+                          ? const Icon(Icons.person, color: Colors.white)
+                          : null,
+                    ),
+                    title: Text(follower['nombre_usuario'] ?? 'Usuario'),
+                    trailing: TextButton(
+                      onPressed: () {
+                        // Lógica para seguir de vuelta
+                        ApiService.toggleFollow(follower['id_usuario'], _userId)
+                            .then((_) => _loadFollowers());
+                      },
+                      child: const Text('Seguir'),
+                    ),
+                    onTap: () {
+                      // Navegar al perfil del seguidor
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Mostrar lista de seguidos
+  void _showFollowingList() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 10),
+              width: 50,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.all(20.0),
+              child: Text(
+                'Siguiendo',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Expanded(
+              child: _isLoadingFollowers
+                  ? const Center(child: CircularProgressIndicator(color: Color(0xFFFA851D)))
+                  : _following.isEmpty
+                  ? const Center(child: Text('No sigues a nadie'))
+                  : ListView.builder(
+                itemCount: _following.length,
+                itemBuilder: (context, index) {
+                  final followed = _following[index];
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: const Color(0xFFFA851D),
+                      backgroundImage: followed['foto_perfil'] != null
+                          ? NetworkImage(followed['foto_perfil'])
+                          : null,
+                      child: followed['foto_perfil'] == null
+                          ? const Icon(Icons.person, color: Colors.white)
+                          : null,
+                    ),
+                    title: Text(followed['nombre_usuario'] ?? 'Usuario'),
+                    trailing: TextButton(
+                      onPressed: () {
+                        // Dejar de seguir
+                        ApiService.toggleFollow(followed['id_usuario'], _userId)
+                            .then((_) => _loadFollowers());
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Dejar de seguir'),
+                    ),
+                    onTap: () {
+                      // Navegar al perfil del seguido
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -293,7 +468,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     } else if (receta['imagen'].toString().startsWith('/uploads')) {
       // Imagen desde el servidor local
       imageWidget = Image.network(
-        'http://10.0.39.41:3000${receta['imagen']}',
+        'http://192.168.100.250:3000${receta['imagen']}',
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           return Container(
@@ -381,7 +556,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
         children: [
           // Imagen de fondo superior
           Positioned(
-            left: -8,
+            left: 5,
             top: -152,
             child: Container(
               width: 445,
@@ -510,87 +685,93 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
           ),
 
           // Contador de seguidores
-          const Positioned(
+          Positioned(
             left: 228,
             top: 166,
-            child: SizedBox(
-              width: 63,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 63,
-                    height: 20,
-                    child: Text(
-                      '0',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 15,
-                        fontFamily: 'Khula',
-                        fontWeight: FontWeight.w300,
+            child: GestureDetector(
+              onTap: _showFollowersList,
+              child: SizedBox(
+                width: 63,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 63,
+                      height: 20,
+                      child: Text(
+                        '${_followers.length}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontSize: 15,
+                          fontFamily: 'Khula',
+                          fontWeight: FontWeight.w300,
+                        ),
                       ),
                     ),
-                  ),
-                  SizedBox(
-                    width: 63,
-                    height: 20,
-                    child: Text(
-                      'Followers',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 15,
-                        fontFamily: 'Khula',
-                        fontWeight: FontWeight.w300,
+                    const SizedBox(
+                      width: 63,
+                      height: 20,
+                      child: Text(
+                        'Followers',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 15,
+                          fontFamily: 'Khula',
+                          fontWeight: FontWeight.w300,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
 
           // Contador de seguidos
-          const Positioned(
+          Positioned(
             left: 329,
             top: 166,
-            child: SizedBox(
-              width: 63,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 63,
-                    height: 20,
-                    child: Text(
-                      '100',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 15,
-                        fontFamily: 'Khula',
-                        fontWeight: FontWeight.w300,
+            child: GestureDetector(
+              onTap: _showFollowingList,
+              child: SizedBox(
+                width: 63,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 63,
+                      height: 20,
+                      child: Text(
+                        '${_following.length}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontSize: 15,
+                          fontFamily: 'Khula',
+                          fontWeight: FontWeight.w300,
+                        ),
                       ),
                     ),
-                  ),
-                  SizedBox(
-                    width: 63,
-                    height: 20,
-                    child: Text(
-                      'Following',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 15,
-                        fontFamily: 'Khula',
-                        fontWeight: FontWeight.w300,
+                    const SizedBox(
+                      width: 63,
+                      height: 20,
+                      child: Text(
+                        'Following',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 15,
+                          fontFamily: 'Khula',
+                          fontWeight: FontWeight.w300,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -811,7 +992,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                     const Positioned(
                       left: 141,
                       top: 8.5,
-                      child: Icon(Icons.person, color: Colors.black, size: 24),
+                      child: Icon(Icons.person, color: Colors.orange, size: 24),
                     ),
                   ],
                 ),

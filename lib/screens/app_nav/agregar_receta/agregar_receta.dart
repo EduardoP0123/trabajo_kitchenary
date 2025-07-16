@@ -16,29 +16,32 @@ class AgregarRecetaScreen extends StatefulWidget {
 }
 
 class _AgregarRecetaScreenState extends State<AgregarRecetaScreen> {
-  final TextEditingController _tituloController = TextEditingController();
-  final TextEditingController _descripcionController = TextEditingController();
-  final TextEditingController _tiempoPreparacionController = TextEditingController();
+  final _tituloController = TextEditingController();
+  final _descripcionController = TextEditingController();
+  final _tiempoPreparacionController = TextEditingController();
   final List<TextEditingController> _pasosControllers = [TextEditingController()];
+  final List<TextEditingController> _ingredientesControllers = [TextEditingController()];
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
   File? _imagen;
   final ImagePicker _picker = ImagePicker();
   int _selectedCategoryId = 1;
 
+  @override
+  void initState() {
+    super.initState();
+    _initializeSpeech();
+  }
+
   Future<void> _initializeSpeech() async {
-    bool available = await _speech.initialize();
-    if (!available) {
-      if (mounted) {
-        EasyLoading.showError('El reconocimiento de voz no está disponible');
-      }
+    if (!await _speech.initialize() && mounted) {
+      EasyLoading.showError('El reconocimiento de voz no está disponible');
     }
   }
 
   void _startListening() async {
     if (!_isListening) {
-      bool available = await _speech.initialize();
-      if (available) {
+      if (await _speech.initialize()) {
         setState(() => _isListening = true);
         _speech.listen(
           onResult: (result) {
@@ -55,21 +58,23 @@ class _AgregarRecetaScreenState extends State<AgregarRecetaScreen> {
   }
 
   Future<void> _getImage(ImageSource source) async {
-    final XFile? pickedFile = await _picker.pickImage(source: source);
-    if (pickedFile != null) {
-      setState(() {
-        _imagen = File(pickedFile.path);
-      });
-    }
+    final pickedFile = await _picker.pickImage(source: source);
+    if (pickedFile != null) setState(() => _imagen = File(pickedFile.path));
   }
 
   void _addNewStep() {
     if (_pasosControllers.last.text.isNotEmpty) {
-      setState(() {
-        _pasosControllers.add(TextEditingController());
-      });
+      setState(() => _pasosControllers.add(TextEditingController()));
     } else {
       EasyLoading.showInfo('Complete el paso actual antes de agregar otro');
+    }
+  }
+
+  void _addNewIngredient() {
+    if (_ingredientesControllers.last.text.isNotEmpty) {
+      setState(() => _ingredientesControllers.add(TextEditingController()));
+    } else {
+      EasyLoading.showInfo('Complete el ingrediente actual antes de agregar otro');
     }
   }
 
@@ -90,6 +95,10 @@ class _AgregarRecetaScreenState extends State<AgregarRecetaScreen> {
       EasyLoading.showError('Debe agregar al menos un paso');
       return false;
     }
+    if (_ingredientesControllers.isEmpty || _ingredientesControllers.first.text.isEmpty) {
+      EasyLoading.showError('Debe agregar al menos un ingrediente');
+      return false;
+    }
     if (_imagen == null) {
       EasyLoading.showError('Debe seleccionar una imagen');
       return false;
@@ -99,45 +108,31 @@ class _AgregarRecetaScreenState extends State<AgregarRecetaScreen> {
 
   Future<void> _guardarReceta() async {
     if (!_validateFields()) return;
-
     try {
       EasyLoading.show(status: 'Guardando receta...');
-
-      // Filtrar solo los pasos con contenido
-      final List<String> pasos = _pasosControllers
-          .where((controller) => controller.text.isNotEmpty)
-          .map((controller) => controller.text)
-          .toList();
-
-      // Convertir los pasos en un formato para guardar
-      final String pasosTexto = pasos.asMap()
-          .entries
-          .map((entry) => '${entry.key + 1}. ${entry.value}')
-          .join('\n');
-
-      // OBTENER EL ID DE USUARIO
+      final pasos = _pasosControllers.where((c) => c.text.isNotEmpty).map((c) => c.text).toList();
+      final pasosTexto = pasos.asMap().entries.map((e) => '${e.key + 1}. ${e.value}').join('\n');
+      final ingredientes = _ingredientesControllers.where((c) => c.text.isNotEmpty).map((c) => c.text).toList();
+      final ingredientesTexto = ingredientes.join('\n');
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getInt('userId') ?? 0;
-
       if (userId == 0) {
         EasyLoading.showError('Error: No se encontró el ID de usuario. Inicia sesión nuevamente.');
         return;
       }
-
-      // Guardar la receta con el ID de usuario
       final result = await ApiService.saveRecipe(
         titulo: _tituloController.text,
         descripcion: _descripcionController.text,
         imagen: _imagen!,
         tiempoPreparacion: int.tryParse(_tiempoPreparacionController.text) ?? 0,
         pasos: pasosTexto,
+        ingredientes: ingredientesTexto,
         idCategoria: _selectedCategoryId,
         idUsuario: userId,
       );
-
       if (result['success'] == true) {
         EasyLoading.showSuccess('Receta guardada con éxito');
-        Navigator.pop(context, true); // Para refrescar el HomeScreen
+        Navigator.pop(context, true);
       } else {
         EasyLoading.showError('Error: ${result['message']}');
       }
@@ -146,10 +141,40 @@ class _AgregarRecetaScreenState extends State<AgregarRecetaScreen> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _initializeSpeech();
+  Widget _buildInputOption({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required bool isSelected,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: isSelected ? const Color(0xFFFA851D) : const Color(0xFFE0E0E0),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              color: isSelected ? Colors.white : Colors.black54,
+              size: 30,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? const Color(0xFFFA851D) : Colors.black54,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -275,7 +300,7 @@ class _AgregarRecetaScreenState extends State<AgregarRecetaScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (_imagen != null) ...[
+                      if (_imagen != null)
                         Container(
                           height: 200,
                           width: double.infinity,
@@ -286,9 +311,8 @@ class _AgregarRecetaScreenState extends State<AgregarRecetaScreen> {
                               fit: BoxFit.cover,
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 15),
-                      ] else ...[
+                        )
+                      else
                         GestureDetector(
                           onTap: () => _getImage(ImageSource.gallery),
                           child: Container(
@@ -308,8 +332,7 @@ class _AgregarRecetaScreenState extends State<AgregarRecetaScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 15),
-                      ],
+                      const SizedBox(height: 15),
                       TextField(
                         controller: _tituloController,
                         decoration: InputDecoration(
@@ -354,7 +377,67 @@ class _AgregarRecetaScreenState extends State<AgregarRecetaScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 15),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'Ingredientes:',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      for (int i = 0; i < _ingredientesControllers.length; i++)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 30,
+                                height: 30,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFFA851D),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Center(
+                                  child: Icon(Icons.restaurant, color: Colors.white, size: 16),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: TextField(
+                                  controller: _ingredientesControllers[i],
+                                  onChanged: (value) {
+                                    if (i == _ingredientesControllers.length - 1 && value.isNotEmpty && value.length > 3) {
+                                      setState(() => _ingredientesControllers.add(TextEditingController()));
+                                    }
+                                  },
+                                  decoration: InputDecoration(
+                                    hintText: 'Ingrediente ${i + 1}',
+                                    filled: true,
+                                    fillColor: const Color(0x72D9D9D9),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: _addNewIngredient,
+                          icon: const Icon(Icons.add, color: Color(0xFFFA851D)),
+                          label: const Text(
+                            'Agregar otro ingrediente',
+                            style: TextStyle(color: Color(0xFFFA851D)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
                       const Text(
                         'Pasos de preparación:',
                         style: TextStyle(
@@ -392,12 +475,8 @@ class _AgregarRecetaScreenState extends State<AgregarRecetaScreen> {
                                   controller: _pasosControllers[i],
                                   maxLines: 2,
                                   onChanged: (value) {
-                                    if (i == _pasosControllers.length - 1 && value.isNotEmpty) {
-                                      if (value.length > 5) {
-                                        setState(() {
-                                          _pasosControllers.add(TextEditingController());
-                                        });
-                                      }
+                                    if (i == _pasosControllers.length - 1 && value.isNotEmpty && value.length > 5) {
+                                      setState(() => _pasosControllers.add(TextEditingController()));
                                     }
                                   },
                                   decoration: InputDecoration(
@@ -444,9 +523,7 @@ class _AgregarRecetaScreenState extends State<AgregarRecetaScreen> {
                               DropdownMenuItem(value: 4, child: Text('Postre')),
                             ],
                             onChanged: (value) {
-                              setState(() {
-                                _selectedCategoryId = value!;
-                              });
+                              setState(() => _selectedCategoryId = value!);
                             },
                           ),
                         ),
@@ -504,7 +581,6 @@ class _AgregarRecetaScreenState extends State<AgregarRecetaScreen> {
               ),
             ),
           ),
-          // --- NAVBAR DISEÑO EXACTO ---
           Positioned(
             bottom: 20,
             left: 0,
@@ -537,7 +613,6 @@ class _AgregarRecetaScreenState extends State<AgregarRecetaScreen> {
                 ),
                 child: Stack(
                   children: [
-                    // Ícono Home
                     Positioned(
                       left: 11,
                       top: 8.5,
@@ -551,7 +626,6 @@ class _AgregarRecetaScreenState extends State<AgregarRecetaScreen> {
                         child: const Icon(Icons.home, color: Colors.black, size: 24),
                       ),
                     ),
-                    // Ícono Favoritos
                     Positioned(
                       left: 70,
                       top: 5,
@@ -563,11 +637,10 @@ class _AgregarRecetaScreenState extends State<AgregarRecetaScreen> {
                           shape: BoxShape.circle,
                         ),
                         child: const Center(
-                          child: Icon(Icons.add, color: Colors.white, size: 24),
+                          child: Icon(Icons.add, color: Colors.black, size: 24),
                         ),
                       ),
                     ),
-                    // Ícono Perfil (activo)
                     Positioned(
                       left: 141,
                       top: 8.5,
@@ -584,42 +657,6 @@ class _AgregarRecetaScreenState extends State<AgregarRecetaScreen> {
                   ],
                 ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInputOption({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    required bool isSelected,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFFFA851D) : const Color(0xFFE0E0E0),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              color: isSelected ? Colors.white : Colors.black54,
-              size: 30,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? const Color(0xFFFA851D) : Colors.black54,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             ),
           ),
         ],

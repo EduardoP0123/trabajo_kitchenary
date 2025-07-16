@@ -6,7 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
 class ApiService {
-  static const String baseUrl = 'http://10.0.40.104:3000/api/';
+  static const String baseUrl = 'http://10.0.42.44:3000/api/';
 
   static Future<http.Response> post(String endpoint, Map<String, dynamic> body) async {
     final url = Uri.parse('$baseUrl$endpoint');
@@ -22,55 +22,20 @@ class ApiService {
     return await http.get(url);
   }
 
-  // Solicitar el código de restablecimiento
-  static Future<Map<String, dynamic>> requestPasswordReset(String email) async {
-    final response = await post('reset-password/request', {
-      'correo': email,
-    });
-
-    return jsonDecode(response.body);
+  static Future<Map<String, dynamic>> getRecipeDetails(int recetaId) async {
+    try {
+      final response = await get('recetas/detalle/$recetaId');
+      final result = jsonDecode(response.body);
+      return result;
+    } catch (e) {
+      return {
+        'success': false,
+        'receta': null,
+        'message': e.toString()
+      };
+    }
   }
 
-  // Verificar el código ingresado
-  static Future<Map<String, dynamic>> verifyResetCode(String email, String code) async {
-    final response = await post('reset-password/verify', {
-      'correo': email,
-      'codigo': code,
-    });
-
-    return jsonDecode(response.body);
-  }
-
-  // Actualizar la contraseña
-  static Future<Map<String, dynamic>> resetPassword(int userId, String newPassword) async {
-    final response = await post('reset-password/update', {
-      'userId': userId,
-      'nuevaContraseña': newPassword,
-    });
-
-    return jsonDecode(response.body);
-  }
-
-  // ============ MÉTODOS PARA GESTIÓN DE RECETAS ============
-
-  // Comprimir imagen
-  static Future<File> _compressImage(File file) async {
-    // Obtener información del archivo
-    final dir = await getTemporaryDirectory();
-    final targetPath = p.join(dir.path, '${DateTime.now().millisecondsSinceEpoch}.jpg');
-
-    // Comprimir la imagen
-    var result = await FlutterImageCompress.compressAndGetFile(
-      file.absolute.path,
-      targetPath,
-      quality: 70, // Calidad de compresión
-      format: CompressFormat.jpeg,
-    );
-
-    return File(result!.path);
-  }
-
-  // Guardar receta usando multipart/form-data (más confiable que base64)
   static Future<Map<String, dynamic>> saveRecipe({
     required String titulo,
     required String descripcion,
@@ -78,138 +43,264 @@ class ApiService {
     required int tiempoPreparacion,
     required String pasos,
     required int idCategoria,
-    required int idUsuario, // Nuevo parámetro requerido
+    required int idUsuario,
+    required String ingredientes,
   }) async {
     try {
-      // Comprimir la imagen antes de enviarla
       File imagenComprimida = await _compressImage(imagen);
-
-      print('Imagen original: ${await imagen.length()} bytes');
-      print('Imagen comprimida: ${await imagenComprimida.length()} bytes');
-      print('Enviando receta con id_usuario: $idUsuario');
-
-      // Crear una petición multipart
       var request = http.MultipartRequest(
-          'POST',
-          Uri.parse('${baseUrl}recetas')
+        'POST',
+        Uri.parse('${baseUrl}recetas'),
       );
-
-      // Agregar los campos de texto
       request.fields['titulo'] = titulo;
       request.fields['descripcion'] = descripcion;
       request.fields['tiempo_preparacion'] = tiempoPreparacion.toString();
       request.fields['pasos'] = pasos;
       request.fields['id_categoria'] = idCategoria.toString();
-      request.fields['id_usuario'] = idUsuario.toString(); // Enviar el ID del usuario
-
-      // Adjuntar la imagen como archivo
-      request.files.add(await http.MultipartFile.fromPath(
-          'imagen',
-          imagenComprimida.path
-      ));
-
-      print('Enviando solicitud a: ${baseUrl}recetas');
-
-      // Enviar la solicitud
+      request.fields['id_usuario'] = idUsuario.toString();
+      request.fields['ingredientes'] = ingredientes;
+      request.files.add(await http.MultipartFile.fromPath('imagen', imagenComprimida.path));
       var streamedResponse = await request.send();
-
-      // Convertir la respuesta a http.Response
       final response = await http.Response.fromStream(streamedResponse);
-      print('Código de estado HTTP: ${response.statusCode}');
-      print('Respuesta: ${response.body}');
-
-      if (response.statusCode != 200) {
-        if (response.body.contains('<!DOCTYPE') || response.body.contains('<html')) {
-          return {
-            'success': false,
-            'message': 'El servidor respondió con HTML en lugar de JSON. Código: ${response.statusCode}'
-          };
-        }
-      }
-
-      // Intentar parsear la respuesta JSON
-      try {
-        return jsonDecode(response.body);
-      } catch (e) {
-        return {
-          'success': false,
-          'message': 'Error al interpretar la respuesta: $e'
-        };
-      }
+      return jsonDecode(response.body);
     } catch (e) {
-      print('Error en saveRecipe: $e');
       return {'success': false, 'message': 'Error: $e'};
     }
   }
 
-  // Versión alternativa usando base64 como respaldo
-  static Future<Map<String, dynamic>> saveRecipeBase64({
-    required String titulo,
-    required String descripcion,
-    required File imagen,
-    required int tiempoPreparacion,
-    required String pasos,
-    required int idCategoria,
-    required int idUsuario, // Nuevo parámetro requerido
-  }) async {
-    try {
-      // Comprimir la imagen antes de convertirla a base64
-      File imagenComprimida = await _compressImage(imagen);
-
-      // Convertir imagen a base64
-      List<int> imageBytes = await imagenComprimida.readAsBytes();
-      String base64Image = base64Encode(imageBytes);
-
-      print('Enviando solicitud a: ${baseUrl}recetas-base64');
-      print('Tamaño de imagen en base64: ${base64Image.length} caracteres');
-      print('Enviando receta con id_usuario: $idUsuario');
-
-      final response = await post('recetas-base64', {
-        'titulo': titulo,
-        'descripcion': descripcion,
-        'imagen_base64': base64Image,
-        'tiempo_preparacion': tiempoPreparacion,
-        'pasos': pasos,
-        'id_categoria': idCategoria,
-        'id_usuario': idUsuario, // Enviar el ID del usuario
-      });
-
-      // Verificar primero si la respuesta es HTML en lugar de JSON
-      final String body = response.body;
-      print('Código de estado HTTP: ${response.statusCode}');
-
-      if (body.trim().startsWith('<!DOCTYPE') || body.contains('<html')) {
-        print('ERROR: Respuesta HTML recibida en lugar de JSON');
-        return {'success': false, 'message': 'El servidor respondió con HTML en lugar de JSON'};
-      }
-
-      // Si llegamos aquí, asumimos que es JSON válido
-      return jsonDecode(body);
-    } catch (e) {
-      print('Error en saveRecipeBase64: $e');
-      return {'success': false, 'message': 'Error: $e'};
-    }
+  static Future<File> _compressImage(File file) async {
+    final dir = await getTemporaryDirectory();
+    final targetPath = p.join(dir.path, '${DateTime.now().millisecondsSinceEpoch}.jpg');
+    var result = await FlutterImageCompress.compressAndGetFile(
+      file.absolute.path,
+      targetPath,
+      quality: 70,
+      format: CompressFormat.jpeg,
+    );
+    return File(result!.path);
   }
 
-  // Obtener todas las recetas
   static Future<Map<String, dynamic>> getAllRecipes() async {
     try {
       final response = await get('recetas');
       return jsonDecode(response.body);
     } catch (e) {
-      print('Error en getAllRecipes: $e');
       return {'success': false, 'message': 'Error: $e', 'recetas': []};
     }
   }
 
-  // Obtener una receta por su ID
-  static Future<Map<String, dynamic>> getRecipeById(int recipeId) async {
+  static Future<Map<String, dynamic>> getRecipesByCategory(int categoryId) async {
     try {
-      final response = await get('recetas/$recipeId');
+      final response = await get('recetas/categoria/$categoryId');
       return jsonDecode(response.body);
     } catch (e) {
-      print('Error en getRecipeById: $e');
+      return {'success': false, 'message': 'Error: $e', 'recetas': []};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getRecipesByUser(int userId) async {
+    try {
+      final response = await get('recetas/usuario/$userId');
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e', 'recetas': []};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getCategories() async {
+    try {
+      final response = await get('categorias');
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e', 'categorias': []};
+    }
+  }
+
+  static Future<Map<String, dynamic>> login(String email, String password) async {
+    try {
+      final response = await post('auth/login', {
+        'correo': email,
+        'contraseña': password,
+      });
+      return jsonDecode(response.body);
+    } catch (e) {
       return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> register(String name, String email, String password) async {
+    try {
+      final response = await post('auth/register', {
+        'nombre_usuario': name,
+        'correo': email,
+        'contraseña': password,
+      });
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getComments(int recetaId) async {
+    try {
+      final response = await get('comentarios/$recetaId');
+      final result = jsonDecode(response.body);
+      return result;
+    } catch (e) {
+      return {'success': false, 'comentarios': [], 'message': e.toString()};
+    }
+  }
+
+  static Future<Map<String, dynamic>> addComment(int recetaId, int userId, String texto) async {
+    try {
+      final response = await post('comentarios', {
+        'id_receta': recetaId,
+        'id_usuario': userId,
+        'texto': texto,
+      });
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getUserRatingForRecipe(int userId, int recetaId) async {
+    try {
+      final response = await get('valoraciones/usuario/$userId/receta/$recetaId');
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'valoracion': null};
+    }
+  }
+
+  static Future<Map<String, dynamic>> rateRecipe(int recetaId, int userId, int rating) async {
+    try {
+      final response = await post('valoraciones', {
+        'id_receta': recetaId,
+        'id_usuario': userId,
+        'valor': rating,
+      });
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  static Future<Map<String, dynamic>> checkFollowStatus(int userId, int followerId) async {
+    try {
+      final response = await get('seguimiento/$userId/$followerId');
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'following': false};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getUserInfo(int userId) async {
+    try {
+      final response = await get('usuarios/$userId');
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'usuario': null};
+    }
+  }
+
+  static Future<Map<String, dynamic>> toggleFollow(int userId, int followerId) async {
+    try {
+      final response = await post('seguimiento/toggle', {
+        'id_usuario': userId,
+        'id_seguidor': followerId,
+      });
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false};
+    }
+  }
+
+  static Future<Map<String, dynamic>> requestPasswordReset(String email) async {
+    try {
+      final response = await post('reset-password/request', {
+        'correo': email,
+      });
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  // MODIFICADO: Devuelve promedio y cantidad
+  static Future<Map<String, dynamic>> getAverageRating(int recetaId) async {
+    try {
+      final response = await get('valoraciones/promedio/$recetaId');
+      final data = jsonDecode(response.body);
+      return {
+        'promedio': (data['promedio'] ?? 0).toDouble(),
+        'cantidad': (data['cantidad'] ?? 0)
+      };
+    } catch (e) {
+      return {'promedio': 0.0, 'cantidad': 0};
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateProfile({
+    required int userId,
+    String? nombre,
+    String? correo,
+    File? imagenPerfil,
+  }) async {
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${baseUrl}usuarios/actualizar'),
+      );
+
+      request.fields['id_usuario'] = userId.toString();
+      if (nombre != null) request.fields['nombre_usuario'] = nombre;
+      if (correo != null) request.fields['correo'] = correo;
+
+      if (imagenPerfil != null) {
+        File imagenComprimida = await _compressImage(imagenPerfil);
+        request.files.add(await http.MultipartFile.fromPath(
+            'imagen_perfil',
+            imagenComprimida.path
+        ));
+      }
+
+      var streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> searchRecipes(String query) async {
+    try {
+      final response = await post('recetas/buscar', {'query': query});
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e', 'recetas': []};
+    }
+  }
+
+  // NUEVOS MÉTODOS PARA SEGUIDORES
+
+  // Obtener lista de seguidores
+  static Future<Map<String, dynamic>> getFollowers(int userId) async {
+    try {
+      final response = await get('usuarios/$userId/seguidores');
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'seguidores': [], 'message': e.toString()};
+    }
+  }
+
+  // Obtener lista de usuarios seguidos
+  static Future<Map<String, dynamic>> getFollowing(int userId) async {
+    try {
+      final response = await get('usuarios/$userId/seguidos');
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'seguidos': [], 'message': e.toString()};
     }
   }
 }
